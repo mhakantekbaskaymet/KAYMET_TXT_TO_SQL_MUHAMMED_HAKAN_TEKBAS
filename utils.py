@@ -43,16 +43,16 @@ def generate_sql_query(natural_language_query: str) -> str:
     prompt = (
         "You are a highly skilled SQL query generator specialized in SQLite. "
          f"{schema_details} "
-        "Based on the above schema, convert the following natural language query into a valid, efficient SQL query. "
+        "Based on the above schema, convert the given natural language query into a valid, efficient SQL query. "
         "Return only the SQL code as plain text without any markdown formatting, code fences, or additional text. "
-        f"Natural language query: '{natural_language_query}'"
     )
+    
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": prompt}],
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": f"Natural language query: '{natural_language_query}'" }],
         temperature=0,
-        max_tokens=150,
-
     )
     return response.choices[0].message.content.strip()
 
@@ -78,7 +78,5 @@ def execute_sql_query(sql: str) -> list[dict[str, str]]:
         results = [dict(zip(columns, row)) for row in rows]
 
         return results
-    except sqlite3.Error as e:
-        raise Exception(f"Database error: {str(e)}")
     finally:
         conn.close()
