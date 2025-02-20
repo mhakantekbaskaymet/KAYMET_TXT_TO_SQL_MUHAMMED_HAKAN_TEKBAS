@@ -4,14 +4,12 @@ from typing import Dict, List,Any
 from fastapi import FastAPI
 from pydantic import BaseModel
 from utils import generate_sql_query, execute_sql_query
-print(12)
 
 app = FastAPI()
 
 
 class QueryRequest(BaseModel):
     """Schema for query generation requests."""
-    
     query: str
 
 
@@ -80,5 +78,4 @@ def process_query(request: QueryRequest) -> QueryResponse:
     sql_query = generate_sql_query(request.query)
  
     results = execute_sql_query(sql_query)    
-    
     return QueryResponse(sql=sql_query, results=results)

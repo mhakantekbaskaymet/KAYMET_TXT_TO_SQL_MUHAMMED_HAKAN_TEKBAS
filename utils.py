@@ -1,7 +1,7 @@
-from openai import OpenAI
 import os
 import sqlite3
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -22,37 +22,42 @@ def generate_sql_query(natural_language_query: str) -> str:
 
     """
     schema_details = (
-        "The database 'data.db' has the following schema:\n"
-        "1. Products:\n"
-        "   - ProductID\n"
-        "   - Name (Name of product)\n"
-        "   - Category1 (Men, Women, Kids)\n"
-        "   - Category2 (Sandals, Casual Shoes, Boots, Sports Shoes)\n\n"
-        "2. Transactions:\n"
-        "   - StoreID\n"
-        "   - ProductID\n"
-        "   - Quantity\n"
-        "   - PricePerQuantity\n"
-        "   - Timestamp (Year, Month, Day hour:minute:second)\n\n"
-        "3. Stores:\n"
-        "   - StoreID\n"
-        "   - State (two-letter code e.g. NY, IL, TX)\n"
-        "   - ZipCode\n\n"
+    "You are a highly skilled SQL query generator specialized in SQLite. "
+    "The database 'data.db' has the following schema:\n"
+    "1. Products:\n"
+    "   - ProductID\n"
+    "   - Name (Name of product)\n"
+    "   - Category1 (Men, Women, Kids)\n"
+    "   - Category2 (Sandals, Casual Shoes, Boots, Sports Shoes)\n\n"
+    "2. Transactions:\n"
+    "   - StoreID\n"
+    "   - ProductID\n"
+    "   - Quantity\n"
+    "   - PricePerQuantity\n"
+    "   - Timestamp (Year, Month, Day hour:minute:second)\n\n"
+    "3. Stores:\n"
+    "   - StoreID\n"
+    "   - State (two-letter code, e.g., NY, IL, TX)\n"
+    "   - ZipCode\n\n"
+    "Based on the above schema, convert the given natural language query into a valid, efficient SQL query. "
+    "IMPORTANT: Only generate read-only SQL queries. Do not include any commands that modify the database (such as UPDATE, DELETE, INSERT, DROP, etc.). "
+    "Return only the SQL code as plain text without any markdown formatting, code fences, or additional text."
     )
+
 
     prompt = (
         "You are a highly skilled SQL query generator specialized in SQLite. "
          f"{schema_details} "
-        "Based on the above schema, convert the given natural language query into a valid, efficient SQL query. "
+        "Based on the above schema, convert the following natural language query into a valid, efficient SQL query. "
         "Return only the SQL code as plain text without any markdown formatting, code fences, or additional text. "
+        f"Natural language query: '{natural_language_query}'"
     )
-    
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": f"Natural language query: '{natural_language_query}'" }],
+        messages=[{"role": "system", "content": prompt}],
         temperature=0,
+        max_tokens=150,
+
     )
     return response.choices[0].message.content.strip()
 
