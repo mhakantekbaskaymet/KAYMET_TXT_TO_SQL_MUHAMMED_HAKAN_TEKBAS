@@ -4,6 +4,7 @@ from typing import Dict, List,Any
 from fastapi import FastAPI
 from pydantic import BaseModel
 from utils import generate_sql_query, execute_sql_query
+print(12)
 
 app = FastAPI()
 
