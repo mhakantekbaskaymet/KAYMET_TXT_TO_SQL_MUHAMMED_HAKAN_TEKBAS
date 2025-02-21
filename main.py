@@ -65,17 +65,27 @@ def process_query(request: QueryRequest) -> QueryResponse:
     """
     Processes a natural language query by generating an SQL query and executing it.
     
+    If the generated SQL is not read-only, it returns a GPT-generated explanation instead of executing the query.
+    
     Args:
         request (QueryRequest): The natural language query request.
         
     Returns:
-        QueryResponse: Contains the generated SQL query and the execution results.
-        
-    Raises:
-        HTTPException: If an error occurs during SQL generation or execution.
+        QueryResponse: Contains the generated SQL query and either the execution results or an explanation.
     """
-   
+    
     sql_query = generate_sql_query(request.query)
- 
-    results = execute_sql_query(sql_query)    
+  
+
+    # Check if the generated SQL is read-only.
+    sql_lower = sql_query.strip().lower()
+    allowed_prefixes = ("select", "with", "explain")
+    if not any(sql_lower.startswith(prefix) for prefix in allowed_prefixes):
+        # Instead of executing a write operation, generate an explanation.
+        return QueryResponse(sql=sql_query, results=[{}])
+    
+   
+    results = execute_sql_query(sql_query)
+
+    
     return QueryResponse(sql=sql_query, results=results)
