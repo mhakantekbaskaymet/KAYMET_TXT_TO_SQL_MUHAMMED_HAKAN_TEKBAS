@@ -114,3 +114,51 @@ def execute_sql_query(sql: str) -> list[dict[str, str]]:
         return results
     finally:
         conn.close()
+
+
+def initialize_session_db():
+    """Initialize the SQLite database and create table if not exists."""
+    conn = sqlite3.connect("sessions.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            user_request TEXT NOT NULL,
+            ai_response TEXT NOT NULL
+        )
+    """)
+    
+    conn.commit()
+    conn.close()
+
+def save_to_session(session_id: str, user_request: str, ai_response: str):
+    """Save user request and AI response to the session database."""
+    conn = sqlite3.connect("sessions.db")
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO sessions (session_id, user_request, ai_response)
+        VALUES (?, ?, ?)
+    """, (session_id, user_request, ai_response))
+    
+    conn.commit()
+    conn.close()
+
+
+def get_session_history(session_id: str):
+    """Retrieve session history by session_id."""
+    conn = sqlite3.connect("sessions.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_request, ai_response FROM sessions
+        WHERE session_id = ?
+        ORDER BY id ASC
+    """, (session_id,))
+    
+    conversation = cursor.fetchall()
+    conn.close()
+    
+    return [{"user": row["user_request"], "ai": row["ai_response"]} for row in conversation]
