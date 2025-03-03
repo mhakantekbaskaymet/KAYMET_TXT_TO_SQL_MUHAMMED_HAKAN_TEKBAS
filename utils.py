@@ -85,7 +85,8 @@ def generate_sql_query(natural_language_query: str) -> str:
             ,
         temperature=0,
     )
-    return response.choices[0].message.content.strip()
+    
+    return response.choices[0].message.content.strip() # type: ignore
 
 def execute_sql_query(sql: str) -> list[dict[str, str]]:
     """
