@@ -97,8 +97,12 @@ def process_query(request: QueryRequest) -> QueryResponse:
         )
 
     sql_query = generate_sql_query(full_prompt)
-    results = execute_sql_query(sql_query)
-      # Store new conversation entry
+    try:
+        results = execute_sql_query(sql_query)
+    except ValueError:
+        return QueryResponse(sql=sql_query, results=[])
+
+    # Store new conversation entry
     ai_response = f"SQL Query: {sql_query}" if not results else str(results)
     save_to_session(request.session_id, request.query, ai_response)
 
