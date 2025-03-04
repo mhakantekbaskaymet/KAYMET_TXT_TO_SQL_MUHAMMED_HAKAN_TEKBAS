@@ -42,7 +42,7 @@ View the API documentation and test the endpoints interactively by visiting:
 
 [FastAPI Docs](http://localhost:8000/docs)
 
-## API Endpoints
+ **API Endpoints**
 - POST /generate-sql: Generates an SQL query from a natural language input.
 - OST /execute-sql: Executes a provided SQL query and returns its results.
 - GET /new-session: Creates a new session for query history tracking.
