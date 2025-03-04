@@ -25,9 +25,9 @@ Make sure you have Python installed on your system. Install the required package
     pip install -r requirements.txt
 
 4. **Start the FastAPI server:**
-    Launch the server using Uvicorn:
 
-    ```sh
+Launch the server using Uvicorn:
+
     python -m uvicorn main:app
 
    
