@@ -2,15 +2,17 @@
 
 from typing import Dict, List,Any
 from fastapi import FastAPI
+import uuid
 from pydantic import BaseModel
-from utils import generate_sql_query, execute_sql_query
+from utils import generate_sql_query, execute_sql_query,initialize_session_db,get_session_history,save_to_session
 
 app = FastAPI()
 
+initialize_session_db()
 
 class QueryRequest(BaseModel):
-    """Schema for query generation requests."""
-    
+    """Schema for query requests including session ID."""
+    session_id: str
     query: str
 
 
@@ -66,18 +68,58 @@ def process_query(request: QueryRequest) -> QueryResponse:
     """
     Processes a natural language query by generating an SQL query and executing it.
     
+    If the generated SQL is not read-only, it returns a GPT-generated explanation instead of executing the query.
+    
     Args:
         request (QueryRequest): The natural language query request.
         
     Returns:
-        QueryResponse: Contains the generated SQL query and the execution results.
-        
-    Raises:
-        HTTPException: If an error occurs during SQL generation or execution.
+        QueryResponse: Contains the generated SQL query and either the execution results.
     """
-   
-    sql_query = generate_sql_query(request.query)
- 
-    results = execute_sql_query(sql_query)    
     
+    history = get_session_history(request.session_id)
+    if history:
+    # Create a structured conversation history prompt
+        history_text = "\n\n".join([f"User: {entry['user']}\nAI: {entry['ai']}" for entry in history])
+
+        full_prompt = (
+        "You are FashionAI, assisting users with fashion database queries."
+        "You remember prior queries and provide coherent responses."
+        f"Conversation history:\n{history_text}\n\n"
+        f"Current user query:\nUser: {request.query}\n"
+        f"Generate a valid **read-only** SQL query based on the context provided."
+        )
+    else:
+        # New session, providing clear instruction
+        full_prompt = (
+            f"User query:\nUser: {request.query}\n"
+            f"Generate a valid **read-only** SQL query based on this query."
+        )
+
+    sql_query = generate_sql_query(full_prompt)
+    try:
+        results = execute_sql_query(sql_query)
+    except ValueError:
+        return QueryResponse(sql=sql_query, results=[])
+
+    # Store new conversation entry
+    ai_response = f"SQL Query: {sql_query}" if not results else str(results)
+    save_to_session(request.session_id, request.query, ai_response)
+
+
     return QueryResponse(sql=sql_query, results=results)
+
+
+
+
+@app.get("/new-session")
+def create_new_session():
+    """
+    Generates a new session ID for a fresh conversation.
+    Returns:
+        Dict[str, str]: A dictionary containing the newly generated session ID.
+ 
+    """
+
+    session_id = str(uuid.uuid4())
+    return {"session_id": session_id}
