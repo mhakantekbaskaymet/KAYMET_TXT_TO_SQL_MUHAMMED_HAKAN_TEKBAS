@@ -1,10 +1,10 @@
 # FastAPI SQL Query Generator
 
 ## Description
-This project is a FastAPI application that processes natural language queries to generate and execute SQL queries.
+The FastAPI SQL Query Generator is an application that converts natural language queries into SQL commands and executes them. It uses FastAPI for a responsive web interface and GPT for accurately translating user inputs into SQL.
 
 ## Installation
-You can run the application locally or using Docker.
+You can run the application locally 
 
 ### Local Setup
 
