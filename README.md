@@ -9,27 +9,30 @@ You can run the application locally or using Docker.
 ### Local Setup
 
 1. **Clone the repository:**
-   ```sh
+   ```sh 
    git clone https://github.com/mhakantekbaskaymet/KAYMET_TXT_TO_SQL_MUHAMMED_HAKAN_TEKBAS.git
    cd KAYMET_TXT_TO_SQL_MUHAMMED_HAKAN_TEKBAS
-   ```
-2. **Create a '.env' file:**
-    - In the root of your project directory, create a .env file to store your ChatGPT API key:
-       ```sh
-  OPENAI_API_KEY=your_api_key_here
-   ```
+
+2. **Create a `.env` file:**
+In the root of your project directory, create a .env file to store your ChatGPT API key:
+
+    OPENAI_API_KEY=your_api_key_here
+
 3. **Install Python dependencies:**
-    - Make sure you have Python installed on your system. Install the required packages listed in 'requirements.txt': 
-    ```sh
-  pip install -r requirements.txt
-   ```
+
+Make sure you have Python installed on your system. Install the required packages listed in `requirements.txt`: 
+
+    pip install -r requirements.txt
+
 4. **Start the FastAPI server:**
-    - Launch the server using Uvicorn:
+    Launch the server using Uvicorn:
+
     ```sh
-  python -m uvicorn main:app
-   ```
+    python -m uvicorn main:app
+
+   
 5. **Access the application:**
-    - Open your browser and go to [http://localhost:8000](http://localhost:8000) to view the FastAPI interface.
+Open your browser and go to [http://localhost:8000](http://localhost:8000) to view the FastAPI interface.
 
 ## Usage
 Leverage the API endpoints provided by the FastAPI application to generate and execute SQL queries.
