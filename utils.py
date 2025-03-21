@@ -1,4 +1,6 @@
 import sqlite3
+import re
+import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -197,3 +199,92 @@ def get_session_history(session_id: str) -> list[dict[str, str]]:
     conn.close()
     
     return [{"user": row["user_request"], "ai": row["ai_response"]} for row in conversation]
+
+def quick_check_sql(sql_query: str, db_path: str = "data.db") -> bool:
+    """
+    Checks whether a given SQL SELECT query contains any data.
+
+    - Extracts everything after FROM and wraps it inside a SELECT EXISTS query.
+    - Removes ORDER BY since it's unnecessary for EXISTS.
+    - Automatically supports WHERE, JOIN, GROUP BY, HAVING, and other SQL structures.
+
+    Args:
+        sql_query (str): The SQL SELECT query to check.
+        db_path (str): Path to the database file. Default is "data.db".
+
+    Returns:
+        bool: Returns True if data exists, otherwise False.
+    """
+    
+        # Remove ORDER BY (not needed for EXISTS)
+    sql_query = re.sub(r"ORDER BY .*", "", sql_query, flags=re.IGNORECASE)
+
+    # Extract everything after FROM
+    match = re.search(r"\bFROM\b\s+(.*)", sql_query, re.IGNORECASE)
+    if not match:
+        raise ValueError("Invalid SQL query! Expected a SELECT statement with FROM clause.")
+
+    after_from = match.group(1)  # Capture everything after FROM
+
+    # Construct EXISTS query
+    exists_query = f"SELECT EXISTS (SELECT 1 FROM {after_from})"
+
+    # Connect to the database and execute the query
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(exists_query)
+
+    # Get result
+    exists = cursor.fetchone()[0]
+    conn.close()
+
+    return bool(exists)
+
+
+
+# Define OpenAI Function Calling tools
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "quick_check_sql",
+        "description": "Checks whether a given SQL query returns any data before execution.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sql_query": {
+                    "type": "string",
+                    "description": "The SQL SELECT query to check."
+                }
+            },
+            "required": ["sql_query"],
+            "additionalProperties": False
+        },
+        "strict": True
+    }
+}]
+
+def check_data_existence(sql_query: str) -> bool:
+    """
+    Uses OpenAI Function Calling to verify if a generated SQL query contains any data.
+
+    Args:
+        sql_query (str): The SQL SELECT query to check.
+
+    Returns:
+        bool: True if data exists, False otherwise.
+    """
+
+    messages = [{"role": "user", "content": f"Check if data exists for query: {sql_query}"}]
+
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages, # type: ignore
+        tools=tools, # type: ignore
+    )
+
+    # Extract function call response
+    tool_call = completion.choices[0].message.tool_calls[0] # type: ignore
+    args = json.loads(tool_call.function.arguments)
+
+    # Call quick_check_sql() directly since it already exists in utils.py
+    return quick_check_sql(args["sql_query"])
