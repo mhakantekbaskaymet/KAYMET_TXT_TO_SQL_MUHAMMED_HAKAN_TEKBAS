@@ -60,6 +60,9 @@ def generate_sql_query(natural_language_query: str) -> str:
     "3. If the user's request involves a modification operation, **DO NOT** generate SQL. Instead, politely respond in the user's language: \n"
     "   - Example (English): 'I don't have access to perform write operations. I can only generate read-only queries.'\n"
     "   - Example (Turkish): 'Yazma işlemleri yapma yetkim yok. Sadece salt okunur sorgular üretebilirim.'\n\n"
+    "4. When the user requests a specific product name, **use only the exact name provided** and **DO NOT** retrieve similar products. \n"
+    "   - **DO NOT** use 'LIKE' operators or any partial matching techniques.\n"
+    "   - Ensure that the query strictly filters based on the exact product name given by the user.\n\n"
 
     "### **Strict Rule: Plain Text SQL Output (No Markup Formatting)**\n"
     "- **Return the SQL query as plain text ONLY**.\n"
@@ -215,14 +218,14 @@ def quick_check_sql(sql_query: str, db_path: str = "data.db") -> bool:
     Returns:
         bool: Returns True if data exists, otherwise False.
     """
-    
-        # Remove ORDER BY (not needed for EXISTS)
+        
+    # Remove ORDER BY (not needed for EXISTS)
     sql_query = re.sub(r"ORDER BY .*", "", sql_query, flags=re.IGNORECASE)
 
     # Extract everything after FROM
     match = re.search(r"\bFROM\b\s+(.*)", sql_query, re.IGNORECASE)
     if not match:
-        raise ValueError("Invalid SQL query! Expected a SELECT statement with FROM clause.")
+        return False
 
     after_from = match.group(1)  # Capture everything after FROM
 
@@ -230,15 +233,16 @@ def quick_check_sql(sql_query: str, db_path: str = "data.db") -> bool:
     exists_query = f"SELECT EXISTS (SELECT 1 FROM {after_from})"
 
     # Connect to the database and execute the query
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(exists_query)
-
-    # Get result
-    exists = cursor.fetchone()[0]
-    conn.close()
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(exists_query)
+            exists = cursor.fetchone()[0]
+        except ValueError:
+            return False
 
     return bool(exists)
+    
 
 
 
@@ -263,28 +267,52 @@ tools = [{
     }
 }]
 
-def check_data_existence(sql_query: str) -> bool:
+def check_data_existence(sql_query: str) :
     """
-    Uses OpenAI Function Calling to verify if a generated SQL query contains any data.
+    Uses OpenAI Function Calling to verify whether a generated SQL query returns any data.
+
+    This function:
+    - Sends a request to OpenAI to check if there is relevant data for the given SQL query.
+    - If OpenAI invokes the `quick_check_sql` function, it extracts the SQL query parameters and executes it.
+    - The response from OpenAI is then appended to the conversation history.
+    - Finally, a second OpenAI API call is made, and the response content is returned as is.
 
     Args:
-        sql_query (str): The SQL SELECT query to check.
+        sql_query (str): The SQL SELECT query that needs to be checked.
 
     Returns:
-        bool: True if data exists, False otherwise.
+        str: The content of OpenAI's response, which may indicate whether data exists.
     """
-
     messages = [{"role": "user", "content": f"Check if data exists for query: {sql_query}"}]
-
+    
+    # Initial API request
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=messages, # type: ignore
         tools=tools, # type: ignore
+        tool_choice="auto"  
     )
 
-    # Extract function call response
-    tool_call = completion.choices[0].message.tool_calls[0] # type: ignore
-    args = json.loads(tool_call.function.arguments)
+    # If OpenAI decides to invoke `quick_check_sql`
+    if completion.choices[0].message.tool_calls:
+        tool_call = completion.choices[0].message.tool_calls[0]
+        arguments = json.loads(tool_call.function.arguments)
 
-    # Call quick_check_sql() directly since it already exists in utils.py
-    return quick_check_sql(args["sql_query"])
+        # Execute the function and get the result
+        result = quick_check_sql(arguments["sql_query"])
+
+        messages.append(completion.choices[0].message) # type: ignore
+        messages.append({                               # append result message
+            "role": "tool",
+            "tool_call_id": tool_call.id,
+            "content": str(result)
+        })
+
+        completion_2 = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages, # type: ignore
+            tools=tools, # type: ignore
+        )
+        
+        # Return the result extracted from the AI response
+        return completion_2.choices[0].message.content# type: ignore

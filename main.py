@@ -130,13 +130,17 @@ def check_and_execute(request: QueryRequest):
     API endpoint to:
     - Convert a natural language query into an SQL query.
     - Check if the generated SQL query returns any data.
-    - If data exists, execute it and return results.
+    - If data exists, execute the SQL query and return the results.
+    - Handles execution errors gracefully.
 
     Args:
         request (QueryRequest): A request containing session_id and a user query.
 
     Returns:
-        dict: SQL query and results, or message stating no data was found.
+        dict: A dictionary containing:
+              - "status" (bool): Indicates whether relevant data exists for the query.
+              - "sql_query" (str): The generated SQL query.
+              - "results" (list): The execution results if data exists, else an empty list.
     """
 
     # Step 1: Convert natural language query into SQL
@@ -145,10 +149,13 @@ def check_and_execute(request: QueryRequest):
     # Step 2: Verify if query returns data using check_data_existence()
     data_exists = check_data_existence(sql_query)
 
-    if not data_exists:
-        return {"status": "No data found.", "sql_query": sql_query, "results": []}
-
     # Step 3: Execute SQL query since data exists
-    results = execute_sql_query(sql_query)
+    try:
+        results = execute_sql_query(sql_query)
+    except ValueError:
+        response = QueryResponse(sql=sql_query, results=[])
+        return response.model_copy(update={"status": data_exists})
+    
+    
 
-    return {"status": "Query executed successfully!", "sql_query": sql_query, "results": results}
+    return {"status": data_exists, "sql_query": sql_query, "results": results}
