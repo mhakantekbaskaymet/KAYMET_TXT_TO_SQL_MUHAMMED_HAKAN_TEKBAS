@@ -4,7 +4,7 @@ from typing import Dict, List,Any
 from fastapi import FastAPI
 import uuid
 from pydantic import BaseModel
-from utils import generate_sql_query, execute_sql_query,initialize_session_db,get_session_history,save_to_session
+from utils import generate_sql_query, execute_sql_query,initialize_session_db,get_session_history,save_to_session,check_data_existence
 
 app = FastAPI()
 
@@ -123,3 +123,39 @@ def create_new_session():
 
     session_id = str(uuid.uuid4())
     return {"session_id": session_id}
+
+@app.post("/check-and-execute")
+def check_and_execute(request: QueryRequest):
+    """
+    API endpoint to:
+    - Convert a natural language query into an SQL query.
+    - Check if the generated SQL query returns any data.
+    - If data exists, execute the SQL query and return the results.
+    - Handles execution errors gracefully.
+
+    Args:
+        request (QueryRequest): A request containing session_id and a user query.
+
+    Returns:
+        dict: A dictionary containing:
+              - "status" (bool): Indicates whether relevant data exists for the query.
+              - "sql_query" (str): The generated SQL query.
+              - "results" (list): The execution results if data exists, else an empty list.
+    """
+
+    # Step 1: Convert natural language query into SQL
+    sql_query = generate_sql_query(request.query)
+
+    # Step 2: Verify if query returns data using check_data_existence()
+    data_exists = check_data_existence(sql_query)
+
+    # Step 3: Execute SQL query since data exists
+    try:
+        results = execute_sql_query(sql_query)
+    except ValueError:
+        response = QueryResponse(sql=sql_query, results=[])
+        return response.model_copy(update={"status": data_exists})
+    
+    
+
+    return {"status": data_exists, "sql_query": sql_query, "results": results}
